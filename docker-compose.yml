@@ -15,6 +15,20 @@ services:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
 
+  # Migration Service to run database migrations
+  migrate:
+    container_name: menatech_migrate
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+      target: builder # Use the build stage which has all dev dependencies
+    command: sh -c "pnpm --filter @menatech/backend exec prisma migrate deploy"
+    environment:
+      DATABASE_URL: "postgresql://user:password@db:5432/menatech?schema=public"
+    depends_on:
+      - db
+    restart: on-failure
+
   # Backend Service (Node.js/Express API)
   backend:
     container_name: menatech_backend
@@ -28,7 +42,8 @@ services:
       # Add other backend environment variables here
       # e.g., GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, etc.
     depends_on:
-      - db
+      migrate:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   # Frontend Service (Next.js App)

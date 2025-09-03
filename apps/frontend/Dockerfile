@@ -42,5 +42,5 @@ COPY --from=builder /app/apps/frontend/public ./apps/frontend/public
 EXPOSE 3000
 
 # Command to run the application
-# The standalone output includes a server.js file
-CMD ["node", "apps/frontend/server.js"]
+# The standalone output includes a server.js file at the root of the workdir
+CMD ["node", "server.js"]
