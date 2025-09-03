@@ -1,0 +1,13 @@
+{
+  "name": "@menatech/backend",
+  "version": "1.0.0",
+  "description": "Backend for the Menatech project management application.",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "nodemon src/index.ts"
+  },
+  "keywords": [],
+  "author": "Jules",
+  "license": "ISC"
+}
