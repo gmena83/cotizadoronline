@@ -1,0 +1,29 @@
+{
+  "name": "Menatech Monorepo",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "backend", // The service to attach VS Code to. We'll attach to the backend.
+  "workspaceFolder": "/app",
+
+  // Configure tool-specific properties.
+  "customizations": {
+    // Configure properties specific to VS Code.
+    "vscode": {
+      // Add the IDs of extensions you want installed when the container is created.
+      "extensions": [
+        "dbaeumer.vscode-eslint", // ESLint
+        "esbenp.prettier-vscode", // Prettier Code Formatter
+        "prisma.prisma", // Prisma syntax highlighting, formatting, and autocompletion
+        "ms-azuretools.vscode-docker", // Docker extension
+        "streetsidesoftware.code-spell-checker", // Spell checker
+        "bradlc.vscode-tailwindcss" // Tailwind CSS IntelliSense
+      ]
+    }
+  },
+
+  // Use 'postCreateCommand' to run commands after the container is created.
+  // We can use this to install dependencies automatically, but the Dockerfiles already handle it.
+  // "postCreateCommand": "pnpm install",
+
+  // Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
+  "remoteUser": "node"
+}
