@@ -1,0 +1,252 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ENUMS
+enum ProjectStatus {
+  LEAD
+  ONE_PAGER_PENDING
+  ONE_PAGER_APPROVED
+  PROPOSAL_PENDING
+  PROPOSAL_SIGNED
+  IN_PROGRESS
+  COMPLETED
+  ARCHIVED
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+// AUTHENTICATION
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // For Google API access
+  googleAccessToken  String?
+  googleRefreshToken String?
+
+  accounts  Account[]
+  sessions  Session[]
+  Signature Signature[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+
+// CORE MODELS
+model Client {
+  id          String    @id @default(cuid())
+  companyName String
+  contactName String
+  contactEmail String   @unique
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  projects Project[]
+}
+
+model Project {
+  id              String        @id @default(cuid())
+  name            String
+  description     String        @db.Text
+  serviceType     String // "AI Literacy", "AI Strategy", "AI Execution"
+  status          ProjectStatus @default(LEAD)
+  accessPassword  String? // Hashed password for client access
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  onePager OnePager?
+  proposal Proposal?
+  documents Document[]
+  workOrderPhases WorkOrderPhase[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model OnePager {
+  id          String @id @default(cuid())
+  projectId   String @unique
+  project     Project @relation(fields: [projectId], references: [id])
+
+  // AI-Generated structured data
+  summary           String @db.Text
+  estimatedTimeline String
+  requiredExperts   Json // List of roles
+  potentialRisks    String @db.Text
+  keyDeliverables   String @db.Text
+
+  // Admin can edit these fields
+  isApproved  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Proposal {
+  id          String @id @default(cuid())
+  slug        String @unique @default(cuid())
+  projectId   String @unique
+  project     Project @relation(fields: [projectId], references: [id])
+
+  // From price calculator
+  totalEstimatedHours  Int
+  blendedHourlyRate    Float
+  complexityMultiplier Float
+  finalPrice           Float
+
+  // Optional subscription selected by client
+  selectedSubscriptionTierId String?
+  subscriptionTier           SubscriptionTier? @relation(fields: [selectedSubscriptionTierId], references: [id])
+
+  isSignedByClient Boolean @default(false)
+  isSignedByAdmin  Boolean @default(false)
+
+  signatures Signature[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Signature {
+  id          String   @id @default(cuid())
+  proposalId  String
+  proposal    Proposal @relation(fields: [proposalId], references: [id])
+
+  // Can be client or admin
+  signerName  String
+  isClient    Boolean  @default(true)
+  signedAt    DateTime @default(now())
+
+  // Link to admin user if not client
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+}
+
+model Document {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id])
+
+  name      String // e.g., "Service Provider Agreement.docx"
+  type      String // "NDA", "SERVICE_AGREEMENT", "WORK_ORDER"
+  googleDriveUrl String
+
+  createdAt DateTime @default(now())
+}
+
+// WORK ORDER HIERARCHY
+model WorkOrderPhase {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id])
+
+  name        String
+  description String   @db.Text
+  order       Int
+
+  tasks WorkOrderTask[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WorkOrderTask {
+  id          String   @id @default(cuid())
+  phaseId     String
+  phase       WorkOrderPhase @relation(fields: [phaseId], references: [id])
+
+  name        String
+  description String   @db.Text
+  status      TaskStatus @default(PENDING)
+  order       Int
+
+  subTasks WorkOrderSubTask[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WorkOrderSubTask {
+  id          String   @id @default(cuid())
+  taskId      String
+  task        WorkOrderTask @relation(fields: [taskId], references: [id])
+
+  name        String
+  description String   @db.Text
+  status      TaskStatus @default(PENDING)
+  order       Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// CONFIGURATION MODELS
+model ExpertRole {
+  id          String @id @default(cuid())
+  name        String @unique // e.g., "AI Strategist"
+  hourlyRate  Float
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SubscriptionTier {
+  id          String @id @default(cuid())
+  name        String @unique // e.g., "Maintenance Plan"
+  price       Float
+  description String @db.Text
+  features    Json // List of features for this tier
+
+  proposals Proposal[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

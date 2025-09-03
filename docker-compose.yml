@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database Service
+  db:
+    image: postgres:15-alpine
+    container_name: menatech_db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: menatech
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  # Backend Service (Node.js/Express API)
+  backend:
+    container_name: menatech_backend
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: "postgresql://user:password@db:5432/menatech?schema=public"
+      # Add other backend environment variables here
+      # e.g., GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, etc.
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  # Frontend Service (Next.js App)
+  frontend:
+    container_name: menatech_frontend
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
